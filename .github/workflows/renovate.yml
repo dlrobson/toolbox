@@ -25,3 +25,5 @@ jobs:
                   token: ${{ secrets.RENOVATE_TOKEN }}
               env:
                   LOG_LEVEL: ${{ github.event.inputs.debug == 'true' && 'debug' || 'info' }}
+                  RENOVATE_REPOSITORIES: >-
+                      dlrobson/dlrobson.github.io,dlrobson/rust-starter,dlrobson/toolbox
