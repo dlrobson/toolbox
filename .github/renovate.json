@@ -1,8 +1,9 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "repositories": [
-        "dlrobson/toolbox",
-        "dlrobson/rust-starter"
+        "dlrobson/dlrobson.github.io",
+        "dlrobson/rust-starter",
+        "dlrobson/toolbox"
     ],
     "cargo": {
         "rangeStrategy": "bump"
