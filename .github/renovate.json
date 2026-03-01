@@ -1,0 +1,74 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "repositories": [
+        "dlrobson/toolbox",
+        "dlrobson/rust-starter"
+    ],
+    "cargo": {
+        "rangeStrategy": "bump"
+    },
+    "customManagers": [
+        {
+            "customType": "regex",
+            "datasourceTemplate": "github-tags",
+            "depNameTemplate": "rust",
+            "managerFilePatterns": [
+                "/(^|/)rust-toolchain\\.toml$/"
+            ],
+            "matchStrings": [
+                "channel\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+(\\.\\d+)?)\""
+            ],
+            "packageNameTemplate": "rust-lang/rust"
+        },
+        {
+            "customType": "regex",
+            "datasourceTemplate": "github-tags",
+            "depNameTemplate": "cargo-bins/cargo-binstall",
+            "managerFilePatterns": [
+                "**/Dockerfile"
+            ],
+            "matchStrings": [
+                "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/v(?<currentValue>.*?)/install-from-binstall-release.sh"
+            ],
+            "packageNameTemplate": "cargo-bins/cargo-binstall"
+        },
+        {
+            "customType": "jsonata",
+            "fileFormat": "json",
+            "datasourceTemplate": "github-releases",
+            "managerFilePatterns": [
+                "**/binstall-versions.json"
+            ],
+            "matchStrings": [
+                "$[*].{\"depName\": repo, \"currentValue\": version}"
+            ]
+        }
+    ],
+    "extends": [
+        "config:recommended"
+    ],
+    "packageRules": [
+        {
+            "commitMessageTopic": "Rust",
+            "matchDepNames": [
+                "rust"
+            ],
+            "matchManagers": [
+                "custom.regex"
+            ]
+        },
+        {
+            "commitMessageTopic": "cargo-binstall",
+            "matchDatasources": [
+                "github-releases"
+            ],
+            "matchPackageNames": [
+                "cargo-bins/cargo-binstall"
+            ]
+        }
+    ],
+    "prHourlyLimit": 10,
+    "reviewers": [
+        "dlrobson"
+    ]
+}

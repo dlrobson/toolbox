@@ -1,0 +1,28 @@
+name: Publish Base CI Image
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "images/ci/**"
+    pull_request:
+        paths:
+            - "images/ci/**"
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+    publish-ci-image:
+        uses: ./.github/workflows/prepare-ci-image.yml
+        permissions:
+            packages: write
+        with:
+            registry: ghcr.io
+            image-name: ${{ github.repository }}-ci
+            dockerfile-context: images/ci
+        secrets:
+            token: ${{ secrets.GITHUB_TOKEN }}
