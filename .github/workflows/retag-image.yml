@@ -15,8 +15,8 @@ on:
                 description: "The source tag to retag from"
                 required: true
                 type: string
-            target-tag:
-                description: "The target tag to retag to"
+            target-tags:
+                description: "Newline-separated list of target tags to apply"
                 required: true
                 type: string
         secrets:
@@ -40,6 +40,15 @@ jobs:
 
             - name: Retag image
               run: |
+                  # Construct the list of --tag arguments from the newline-separated input
+                  TAG_ARGS=""
+                  while IFS= read -r tag; do
+                    if [ -n "$tag" ]; then
+                      TAG_ARGS="$TAG_ARGS --tag ${{ inputs.registry }}/${{ inputs.image-name }}:${tag}"
+                    fi
+                  done <<< "${{ inputs.target-tags }}"
+
+                  # Run the command once with all tags specified
                   docker buildx imagetools create \
-                    --tag ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.target-tag }} \
-                    ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.source-tag }}
+                    $TAG_ARGS \
+                    "${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.source-tag }}"

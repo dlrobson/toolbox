@@ -114,7 +114,7 @@ jobs:
         with:
             registry: ${{ inputs.registry }}
             image-name: ${{ inputs.image-name }}
-            image-tag: ${{ needs.get-tag.outputs.tag }}
+            image-tags: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ needs.get-tag.outputs.tag }}
             dockerfile-context: ${{ inputs.dockerfile-context }}
         secrets:
             token: ${{ secrets.token }}
@@ -131,6 +131,7 @@ jobs:
             registry: ${{ inputs.registry }}
             image-name: ${{ inputs.image-name }}
             source-tag: ${{ needs.get-tag.outputs.tag }}
-            target-tag: latest
+            target-tags: |
+                latest
         secrets:
             token: ${{ secrets.token }}

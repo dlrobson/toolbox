@@ -1,4 +1,4 @@
-name: Publish Base CI Image
+name: Publish Rust CI Image
 
 on:
     push:
@@ -16,13 +16,130 @@ concurrency:
     cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-    publish-ci-image:
-        uses: ./.github/workflows/prepare-ci-image.yml
+    # Determines whether a build is needed and what version tag to apply.
+    # Tags follow the scheme {rust-version}-{N}, e.g. 1.93.1-0, 1.93.1-1.
+    # A sha-{hash} tag is also applied to make each unique build addressable,
+    # and is used as the stable source for retagging to the mutable aliases.
+    determine-version:
+        runs-on: ubuntu-latest
+        permissions:
+            packages: read
+        outputs:
+            rust-version: ${{ steps.rust-version.outputs.version }}
+            content-hash: ${{ steps.content-hash.outputs.hash }}
+            versioned-tag: ${{ steps.determine-tag.outputs.versioned-tag }}
+            should-build: ${{ steps.determine-tag.outputs.should-build }}
+            is-main: ${{ steps.check-main.outputs.is-main }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Extract Rust version
+              id: rust-version
+              run: |
+                  VERSION=$(grep -m1 '^FROM rust:' images/ci/Dockerfile \
+                    | sed 's/FROM rust:\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/')
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "Rust version: $VERSION"
+
+            - name: Compute content hash
+              id: content-hash
+              env:
+                  FULL_HASH: ${{ hashFiles('images/ci/**') }}
+              run: |
+                  HASH="${FULL_HASH:0:12}"
+                  echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+                  echo "Content hash: $HASH"
+
+            - name: Check if on main branch
+              id: check-main
+              run: |
+                  if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+                    echo "is-main=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "is-main=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Log in to registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Determine version tag
+              id: determine-tag
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RUST_VERSION: ${{ steps.rust-version.outputs.version }}
+                  REPO_OWNER: ${{ github.repository_owner }}
+                  CONTENT_HASH: ${{ steps.content-hash.outputs.hash }}
+              run: |
+                  SHA_TAG="sha-${CONTENT_HASH}"
+                  IMAGE="ghcr.io/${REPO_OWNER}/rust-ci"
+
+                  # If this exact content was already published, skip the build entirely.
+                  if docker manifest inspect "${IMAGE}:${SHA_TAG}" > /dev/null 2>&1; then
+                    echo "Content already published as ${IMAGE}:${SHA_TAG} - skipping build"
+                    echo "should-build=false" >> "$GITHUB_OUTPUT"
+                    echo "versioned-tag=${RUST_VERSION}" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+
+                  echo "should-build=true" >> "$GITHUB_OUTPUT"
+
+                  # Find the highest existing N for tags matching {RUST_VERSION}-{N}.
+                  TAGS=$(gh api --paginate \
+                    "/users/${REPO_OWNER}/packages/container/rust-ci/versions" \
+                    --jq '.[].metadata.container.tags[]' 2>/dev/null || true)
+
+                  MAX_N=-1
+                  while IFS= read -r tag; do
+                    if [[ "$tag" =~ ^${RUST_VERSION}-([0-9]+)$ ]]; then
+                      N="${BASH_REMATCH[1]}"
+                      if [ "$N" -gt "$MAX_N" ]; then
+                        MAX_N=$N
+                      fi
+                    fi
+                  done <<< "$TAGS"
+
+                  NEXT_N=$((MAX_N + 1))
+                  VERSIONED_TAG="${RUST_VERSION}-${NEXT_N}"
+                  echo "versioned-tag=${VERSIONED_TAG}" >> "$GITHUB_OUTPUT"
+                  echo "Next version tag: ${VERSIONED_TAG} (previous max: ${MAX_N})"
+
+    build:
+        needs: determine-version
+        if: needs.determine-version.outputs.should-build == 'true'
+        uses: ./.github/workflows/build-image.yml
         permissions:
             packages: write
         with:
             registry: ghcr.io
-            image-name: ${{ github.repository }}-ci
+            image-name: ${{ github.repository_owner }}/rust-ci
             dockerfile-context: images/ci
+            image-tags: |
+                ghcr.io/${{ github.repository_owner }}/rust-ci:${{ needs.determine-version.outputs.versioned-tag }}
+                ghcr.io/${{ github.repository_owner }}/rust-ci:sha-${{ needs.determine-version.outputs.content-hash }}
+        secrets:
+            token: ${{ secrets.GITHUB_TOKEN }}
+
+    # On main only: retag the immutable sha-{hash} image to the mutable aliases.
+    # Runs even if the build was skipped (content already existed).
+    tag-mutable-aliases:
+        needs: [determine-version, build]
+        if: |
+            always() &&
+            needs.determine-version.outputs.is-main == 'true' &&
+            (needs.build.result == 'success' || needs.build.result == 'skipped')
+        uses: ./.github/workflows/retag-image.yml
+        permissions:
+            packages: write
+        with:
+            registry: ghcr.io
+            image-name: ${{ github.repository_owner }}/rust-ci
+            source-tag: sha-${{ needs.determine-version.outputs.content-hash }}
+            target-tags: |
+                ${{ needs.determine-version.outputs.rust-version }}
+                latest
         secrets:
             token: ${{ secrets.GITHUB_TOKEN }}
