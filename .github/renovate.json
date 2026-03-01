@@ -63,8 +63,5 @@
             ]
         }
     ],
-    "prHourlyLimit": 10,
-    "reviewers": [
-        "dlrobson"
-    ]
+    "prHourlyLimit": 10
 }
