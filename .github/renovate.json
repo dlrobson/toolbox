@@ -2,7 +2,6 @@
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "gitAuthor": "Renovate Bot <43209161+dlrobson@users.noreply.github.com>",
     "repositories": [
-        "dlrobson/crux-play",
         "dlrobson/dlrobson.github.io",
         "dlrobson/rust-starter",
         "dlrobson/toolbox"
