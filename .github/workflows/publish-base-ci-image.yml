@@ -31,7 +31,7 @@ jobs:
             should-build: ${{ steps.determine-tag.outputs.should-build }}
             is-main: ${{ steps.check-main.outputs.is-main }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Extract Rust version
               id: rust-version

@@ -33,7 +33,7 @@ jobs:
             should-retag: ${{ steps.determine-tag.outputs.should-retag }}
             image: ${{ steps.determine-tag.outputs.image }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Compute content hash
               id: content-hash
