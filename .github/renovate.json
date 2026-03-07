@@ -55,9 +55,6 @@
             "groupName": "Rust",
             "matchDepNames": [
                 "rust"
-            ],
-            "matchManagers": [
-                "custom.regex"
             ]
         },
         {
