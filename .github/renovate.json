@@ -52,12 +52,21 @@
     "packageRules": [
         {
             "commitMessageTopic": "Rust",
+            "groupName": "Rust",
             "matchDepNames": [
                 "rust"
             ],
             "matchManagers": [
                 "custom.regex"
             ]
+        },
+        {
+            "commitMessageTopic": "Rust CI image",
+            "groupName": "Rust",
+            "matchDepNames": [
+                "ghcr.io/dlrobson/rust-ci"
+            ],
+            "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$"
         },
         {
             "commitMessageTopic": "cargo-binstall",
